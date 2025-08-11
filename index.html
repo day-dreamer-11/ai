@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日程计划AI分析助手</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind主题 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#8B5CF6',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-height {
+                transition: max-height 0.3s ease-in-out;
+            }
+        }
+    </style>
+    
+    <style>
+        /* 基础动画定义 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen font-sans text-dark">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="navbar">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-calendar-check-o text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-primary">日程计划AI分析助手</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button id="historyBtn" class="flex items-center text-gray-600 hover:text-primary transition-colors duration-200">
+                    <i class="fa fa-history mr-1"></i>
+                    <span class="hidden sm:inline">历史记录</span>
+                </button>
+                <button id="settingsBtn" class="flex items-center text-gray-600 hover:text-primary transition-colors duration-200">
+                    <i class="fa fa-cog mr-1"></i>
+                    <span class="hidden sm:inline">设置</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 pt-20 pb-16">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4">
+            <!-- 左侧：计划输入区 -->
+            <div class="lg:col-span-5 space-y-6 animate-fadeIn" style="animation-delay: 0.1s;">
+                <!-- 日期选择卡片 -->
+                <div class="bg-white rounded-xl shadow-lg p-5 transform hover:shadow-xl transition-all duration-300">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">选择日期</h2>
+                        <button id="todayBtn" class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full hover:bg-primary/20 transition-colors">
+                            今天
+                        </button>
+                    </div>
+                    <input type="date" id="scheduleDate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                </div>
+                
+                <!-- 计划输入卡片 -->
+                <div class="bg-white rounded-xl shadow-lg p-5 transform hover:shadow-xl transition-all duration-300">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">输入您的计划</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="scheduleTitle" class="block text-sm font-medium text-gray-700 mb-1">计划标题</label>
+                            <input type="text" id="scheduleTitle" placeholder="例如：周一工作计划" 
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                        </div>
+                        
+                        <div>
+                            <label for="scheduleContent" class="block text-sm font-medium text-gray-700 mb-1">详细计划内容</label>
+                            <textarea id="scheduleContent" rows="8" placeholder="请详细描述您的日程安排和计划..." 
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"></textarea>
+                            <div class="flex justify-end mt-1">
+                                <span id="charCount" class="text-xs text-gray-500">0/2000</span>
+                            </div>
+                        </div>
+                        
+                        <button id="analyzeBtn" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center">
+                            <i class="fa fa-lightbulb-o mr-2"></i>
+                            让AI分析计划
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 提示卡片 -->
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <div class="flex">
+                        <i class="fa fa-info-circle text-primary mt-0.5 mr-3"></i>
+                        <div>
+                            <h3 class="font-medium text-primary mb-1">使用提示</h3>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li>• 已适配Kimi大模型接口</li>
+                                <li>• 已自动填入指定的API Key</li>
+                                <li>• 默认模型：moonshot-v1-8k</li>
+                                <li>• 历史记录会保存在本地，方便查看</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：分析结果区 -->
+            <div class="lg:col-span-7 animate-fadeIn" style="animation-delay: 0.3s;">
+                <div class="bg-white rounded-xl shadow-lg h-full p-5 flex flex-col">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">AI分析结果</h2>
+                    
+                    <!-- 初始状态提示 -->
+                    <div id="initialState" class="flex-1 flex flex-col items-center justify-center text-center p-6 text-gray-500">
+                        <div class="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                            <i class="fa fa-robot text-primary text-4xl"></i>
+                        </div>
+                        <h3 class="text-xl font-medium mb-2">等待您的计划输入</h3>
+                        <p class="max-w-md">输入您的日程计划并点击"让AI分析计划"按钮，我将为您提供专业的建议</p>
+                    </div>
+                    
+                    <!-- 加载状态 -->
+                    <div id="loadingState" class="flex-1 flex flex-col items-center justify-center hidden">
+                        <div class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
+                        <p class="text-gray-600">AI正在分析您的计划，请稍候...</p>
+                    </div>
+                    
+                    <!-- 错误状态 -->
+                    <div id="errorState" class="flex-1 flex flex-col items-center justify-center hidden">
+                        <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                            <i class="fa fa-exclamation-triangle text-red-500 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-red-500 mb-2">连接失败</h3>
+                        <p class="text-gray-600 mb-4 text-center" id="errorMessage">无法连接到AI服务，请检查API设置是否正确</p>
+                        <button id="retryBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors">
+                            重试
+                        </button>
+                    </div>
+                    
+                    <!-- 结果展示区 -->
+                    <div id="resultState" class="flex-1 overflow-y-auto hidden">
+                        <div class="border-b border-gray-200 pb-3 mb-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 id="resultTitle" class="text-xl font-semibold text-gray-800"></h3>
+                                    <p id="resultDate" class="text-sm text-gray-500 mt-1"></p>
+                                </div>
+                                <button id="saveResultBtn" class="text-primary hover:text-primary/80 flex items-center text-sm transition-colors">
+                                    <i class="fa fa-save mr-1"></i> 保存
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="text-base font-semibold text-gray-800 mb-2 flex items-center">
+                                    <i class="fa fa-check-circle text-secondary mr-2"></i>
+                                    计划亮点
+                                </h4>
+                                <div id="strengthsSection" class="pl-6 border-l-2 border-secondary/30 text-gray-700"></div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-base font-semibold text-gray-800 mb-2 flex items-center">
+                                    <i class="fa fa-exclamation-circle text-amber-500 mr-2"></i>
+                                    潜在改进点
+                                </h4>
+                                <div id="improvementsSection" class="pl-6 border-l-2 border-amber-200 text-gray-700"></div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-base font-semibold text-gray-800 mb-2 flex items-center">
+                                    <i class="fa fa-lightbulb-o text-accent mr-2"></i>
+                                    优化建议
+                                </h4>
+                                <div id="suggestionsSection" class="pl-6 border-l-2 border-accent/30 text-gray-700"></div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-base font-semibold text-gray-800 mb-2 flex items-center">
+                                    <i class="fa fa-clock-o text-primary mr-2"></i>
+                                    时间分配建议
+                                </h4>
+                                <div id="timingSection" class="pl-6 border-l-2 border-primary/30 text-gray-700"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 历史记录模态框 -->
+    <div id="historyModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-fadeIn">
+            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">历史计划记录</h3>
+                <button id="closeHistoryBtn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="historyList" class="flex-1 overflow-y-auto p-5 space-y-3">
+                <!-- 历史记录会动态填充到这里 -->
+                <div class="text-center text-gray-500 py-10" id="emptyHistory">
+                    <i class="fa fa-folder-open-o text-4xl mb-3 opacity-30"></i>
+                    <p>暂无历史记录</p>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-gray-200 flex justify-end">
+                <button id="clearHistoryBtn" class="text-red-500 hover:text-red-600 px-4 py-2 transition-colors text-sm">
+                    <i class="fa fa-trash mr-1"></i> 清空历史
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col animate-fadeIn">
+            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">设置</h3>
+                <button id="closeSettingsBtn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-5 space-y-5">
+                <div>
+                    <label for="apiKey" class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                    <input type="text" id="apiKey" placeholder="请输入Kimi的API Key" 
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                    <p class="text-xs text-gray-500 mt-1">Kimi平台的API Key</p>
+                </div>
+                
+                <div>
+                    <label for="apiEndpoint" class="block text-sm font-medium text-gray-700 mb-1">推理接口地址</label>
+                    <input type="text" id="apiEndpoint" value="https://api.moonshot.cn/v1/chat/completions" 
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                    <p class="text-xs text-gray-500 mt-1">Kimi的对话接口地址</p>
+                </div>
+                
+                <div>
+                    <label for="modelName" class="block text-sm font-medium text-gray-700 mb-1">AI模型名称</label>
+                    <input type="text" id="modelName" value="moonshot-v1-8k" 
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all">
+                    <p class="text-xs text-gray-500 mt-1">Kimi的模型名称，如moonshot-v1-8k、moonshot-v1-32k等</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">分析风格</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="analysisStyle" value="balanced" checked class="w-4 h-4 text-primary">
+                            <span class="ml-2 text-gray-700">平衡型（默认）</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="analysisStyle" value="detailed" class="w-4 h-4 text-primary">
+                            <span class="ml-2 text-gray-700">详细型</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="analysisStyle" value="concise" class="w-4 h-4 text-primary">
+                            <span class="ml-2 text-gray-700">简洁型</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-gray-200 flex justify-end">
+                <button id="saveSettingsBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 通知提示 -->
+    <div id="notification" class="fixed bottom-4 right-4 bg-dark text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center z-50 max-w-xs">
+        <i id="notificationIcon" class="fa fa-check-circle mr-2"></i>
+        <span id="notificationText"></span>
+    </div>
+
+    <script>
+        // DOM元素引用
+        const scheduleDate = document.getElementById('scheduleDate');
+        const scheduleTitle = document.getElementById('scheduleTitle');
+        const scheduleContent = document.getElementById('scheduleContent');
+        const charCount = document.getElementById('charCount');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const todayBtn = document.getElementById('todayBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const saveResultBtn = document.getElementById('saveResultBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // 状态元素
+        const initialState = document.getElementById('initialState');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const resultState = document.getElementById('resultState');
+        
+        // 结果元素
+        const resultTitle = document.getElementById('resultTitle');
+        const resultDate = document.getElementById('resultDate');
+        const strengthsSection = document.getElementById('strengthsSection');
+        const improvementsSection = document.getElementById('improvementsSection');
+        const suggestionsSection = document.getElementById('suggestionsSection');
+        const timingSection = document.getElementById('timingSection');
+        
+        // 模态框元素
+        const historyBtn = document.getElementById('historyBtn');
+        const historyModal = document.getElementById('historyModal');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const historyList = document.getElementById('historyList');
+        const emptyHistory = document.getElementById('emptyHistory');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+        const apiEndpointInput = document.getElementById('apiEndpoint');
+        const modelNameInput = document.getElementById('modelName');
+        
+        // 通知元素
+        const notification = document.getElementById('notification');
+        const notificationIcon = document.getElementById('notificationIcon');
+        const notificationText = document.getElementById('notificationText');
+        
+        // 导航栏
+        const navbar = document.getElementById('navbar');
+        
+        // 当前分析的计划数据
+        let currentSchedule = null;
+        
+        // 初始化页面
+        function init() {
+            // 设置默认日期为今天
+            const today = new Date().toISOString().split('T')[0];
+            scheduleDate.value = today;
+            
+            // 加载设置，并自动填入指定的API Key
+            loadSettings();
+            // 填入指定的Kimi API Key
+            apiKeyInput.value = 'sk-6ec81daae7d94125b56f7d6e23c845c8';
+            // 确保接口地址和模型名称正确
+            apiEndpointInput.value = 'https://api.deepseek.com/v1/chat/completions';
+            modelNameInput.value = 'deepseek-chat';
+            // 自动保存这些设置
+            saveSettings();
+            
+            // 监听字符数变化
+            scheduleContent.addEventListener('input', updateCharCount);
+            updateCharCount();
+            
+            // 绑定按钮事件
+            todayBtn.addEventListener('click', () => {
+                scheduleDate.value = today;
+            });
+            
+            analyzeBtn.addEventListener('click', analyzeSchedule);
+            retryBtn.addEventListener('click', analyzeSchedule);
+            saveResultBtn.addEventListener('click', saveResult);
+            
+            // 历史记录相关事件
+            historyBtn.addEventListener('click', openHistoryModal);
+            closeHistoryBtn.addEventListener('click', closeHistoryModal);
+            clearHistoryBtn.addEventListener('click', clearHistory);
+            
+            // 设置相关事件
+            settingsBtn.addEventListener('click', openSettingsModal);
+            closeSettingsBtn.addEventListener('click', closeSettingsModal);
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            
+            // 点击模态框外部关闭
+            historyModal.addEventListener('click', (e) => {
+                if (e.target === historyModal) closeHistoryModal();
+            });
+            
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) closeSettingsModal();
+            });
+            
+            // 滚动时改变导航栏样式
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 10) {
+                    navbar.classList.add('py-2', 'shadow-lg');
+                    navbar.classList.remove('py-3', 'shadow-md');
+                } else {
+                    navbar.classList.add('py-3', 'shadow-md');
+                    navbar.classList.remove('py-2', 'shadow-lg');
+                }
+            });
+            
+            // 加载历史记录
+            loadHistory();
+            
+            // 显示初始提示
+            showNotification('Kimi配置已更新，API Key已自动填入', 'info');
+        }
+        
+        // 更新字符计数
+        function updateCharCount() {
+            const count = scheduleContent.value.length;
+            charCount.textContent = `${count}/2000`;
+            
+            if (count > 2000) {
+                charCount.classList.add('text-red-500');
+                scheduleContent.value = scheduleContent.value.substring(0, 2000);
+                updateCharCount();
+            } else {
+                charCount.classList.remove('text-red-500');
+            }
+        }
+        
+        // 分析日程计划 - Kimi大模型适配版
+        function analyzeSchedule() {
+            // 验证输入
+            if (!scheduleTitle.value.trim()) {
+                showNotification('请输入计划标题', 'warning');
+                scheduleTitle.focus();
+                return;
+            }
+            
+            if (!scheduleContent.value.trim()) {
+                showNotification('请输入计划内容', 'warning');
+                scheduleContent.focus();
+                return;
+            }
+            
+            // 获取API设置
+            const apiKey = apiKeyInput.value.trim();
+            const apiEndpoint = apiEndpointInput.value.trim();
+            const modelName = modelNameInput.value.trim();
+            
+            if (!apiKey) {
+                showNotification('请输入API Key', 'warning');
+                openSettingsModal();
+                apiKeyInput.focus();
+                return;
+            }
+            
+            if (!apiEndpoint) {
+                showNotification('请输入推理接口地址', 'warning');
+                openSettingsModal();
+                apiEndpointInput.focus();
+                return;
+            }
+            
+            if (!modelName) {
+                showNotification('请输入模型名称', 'warning');
+                openSettingsModal();
+                modelNameInput.focus();
+                return;
+            }
+            
+            // 保存当前计划数据
+            currentSchedule = {
+                id: Date.now(),
+                date: scheduleDate.value,
+                title: scheduleTitle.value.trim(),
+                content: scheduleContent.value.trim()
+            };
+            
+            // 显示加载状态
+            showLoadingState();
+            
+            // 构建提示词
+            const analysisStyle = document.querySelector('input[name="analysisStyle"]:checked').value;
+            let stylePrompt = '';
+            
+            switch(analysisStyle) {
+                case 'detailed':
+                    stylePrompt = '请进行详细分析，提供全面的反馈和建议，内容可以较为详尽。';
+                    break;
+                case 'concise':
+                    stylePrompt = '请进行简洁分析，用精炼的语言提供核心反馈和建议，避免冗长。';
+                    break;
+                default:
+                    stylePrompt = '请进行平衡的分析，既不过于简略也不过于冗长，提供实用的反馈和建议。';
+            }
+            
+            const prompt = `
+                我需要你分析以下日程计划并提供建议。请按照以下四个部分组织你的回答：
+                1. 计划亮点：指出计划中做得好的地方
+                2. 潜在改进点：指出计划中可能存在的问题或不足
+                3. 优化建议：提供具体的改进建议
+                4. 时间分配建议：对计划中的时间安排提供优化建议
+                
+                ${stylePrompt}
+                
+                计划日期：${currentSchedule.date}
+                计划标题：${currentSchedule.title}
+                计划内容：${currentSchedule.content}
+            `;
+            
+            // 调用Kimi API
+            fetch(apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: '你是一位专业的日程计划分析助手，擅长分析各类计划并提供有价值的改进建议。'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1000,
+                    top_p: 0.95
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error?.message || `API请求失败: ${response.status}`);
+                    }).catch(() => {
+                        throw new Error(`API请求失败: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.choices && data.choices.length > 0 && data.choices[0].message?.content) {
+                    // 保存AI响应
+                    currentSchedule.analysis = data.choices[0].message.content;
+                    // 显示结果
+                    displayAnalysisResult(currentSchedule);
+                } else {
+                    throw new Error('未收到有效的AI响应');
+                }
+            })
+            .catch(error => {
+                console.error('分析失败:', error);
+                errorMessage.textContent = error.message || '无法连接到Kimi服务，请检查API设置是否正确';
+                showErrorState();
+            });
+        }
+        
+        // 显示分析结果
+        function displayAnalysisResult(schedule) {
+            // 更新结果区域内容
+            resultTitle.textContent = schedule.title;
+            resultDate.textContent = formatDate(schedule.date);
+            
+            // 解析AI分析结果
+            const analysis = schedule.analysis;
+            
+            // 简单解析结果为各个部分
+            let strengths = '';
+            let improvements = '';
+            let suggestions = '';
+            let timing = '';
+            
+            // 尝试根据标题分割内容
+            const sections = analysis.split(/\d+\.\s*/);
+            
+            if (sections.length >= 5) {
+                strengths = sections[1].replace(/计划亮点：?/, '').trim();
+                improvements = sections[2].replace(/潜在改进点：?/, '').trim();
+                suggestions = sections[3].replace(/优化建议：?/, '').trim();
+                timing = sections[4].replace(/时间分配建议：?/, '').trim();
+            } else {
+                // 如果无法分割，则将所有内容放入建议部分
+                strengths = "AI未能识别出明确的亮点部分";
+                improvements = "AI未能识别出明确的改进点部分";
+                suggestions = analysis;
+                timing = "AI未能识别出明确的时间分配建议部分";
+            }
+            
+            // 将文本转换为HTML列表
+            strengthsSection.innerHTML = textToHtmlList(strengths);
+            improvementsSection.innerHTML = textToHtmlList(improvements);
+            suggestionsSection.innerHTML = textToHtmlList(suggestions);
+            timingSection.innerHTML = textToHtmlList(timing);
+            
+            // 显示结果状态
+            showResultState();
+        }
+        
+        // 将文本转换为HTML列表
+        function textToHtmlList(text) {
+            if (!text) return '<p>无相关内容</p>';
+            
+            // 尝试将换行符分隔的内容转换为列表
+            const items = text.split('\n').filter(item => item.trim());
+            
+            if (items.length > 1) {
+                return `<ul class="space-y-2">${items.map(item => `<li class="relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-current">${item}</li>`).join('')}</ul>`;
+            } else {
+                return `<p>${text}</p>`;
+            }
+        }
+        
+        // 保存结果到历史记录
+        function saveResult() {
+            if (!currentSchedule || !currentSchedule.analysis) return;
+            
+            // 获取现有历史记录
+            let history = JSON.parse(localStorage.getItem('scheduleHistory') || '[]');
+            
+            // 检查是否已存在相同ID的记录，如果有则替换
+            const existingIndex = history.findIndex(item => item.id === currentSchedule.id);
+            if (existingIndex >= 0) {
+                history[existingIndex] = currentSchedule;
+            } else {
+                // 添加新记录
+                history.unshift(currentSchedule);
+                
+                // 限制历史记录数量为50条
+                if (history.length > 50) {
+                    history = history.slice(0, 50);
+                }
+            }
+            
+            // 保存到本地存储
+            localStorage.setItem('scheduleHistory', JSON.stringify(history));
+            
+            // 刷新历史记录列表
+            loadHistory();
+            
+            // 显示通知
+            showNotification('计划已保存到历史记录', 'success');
+        }
+        
+        // 加载历史记录
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('scheduleHistory') || '[]');
+            
+            // 清空列表
+            historyList.innerHTML = '';
+            
+            if (history.length === 0) {
+                // 显示空状态
+                historyList.appendChild(emptyHistory);
+                return;
+            }
+            
+            // 隐藏空状态
+            if (emptyHistory.parentNode === historyList) {
+                historyList.removeChild(emptyHistory);
+            }
+            
+            // 添加历史记录项
+            history.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer';
+                historyItem.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-medium text-gray-800">${item.title}</h4>
+                        <span class="text-xs text-gray-500">${formatDate(item.date)}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1 line-clamp-2">${item.content.substring(0, 100)}${item.content.length > 100 ? '...' : ''}</p>
+                `;
+                
+                // 点击查看详情
+                historyItem.addEventListener('click', () => {
+                    displayAnalysisResult(item);
+                    closeHistoryModal();
+                    
+                    // 填充表单
+                    scheduleDate.value = item.date;
+                    scheduleTitle.value = item.title;
+                    scheduleContent.value = item.content;
+                    updateCharCount();
+                    
+                    // 更新当前计划
+                    currentSchedule = item;
+                });
+                
+                historyList.appendChild(historyItem);
+            });
+        }
+        
+        // 清空历史记录
+        function clearHistory() {
+            if (confirm('确定要清空所有历史记录吗？此操作不可恢复。')) {
+                localStorage.removeItem('scheduleHistory');
+                loadHistory();
+                showNotification('历史记录已清空', 'info');
+            }
+        }
+        
+        // 加载设置
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('scheduleSettings') || '{}');
+            
+            // 只有当本地存储中没有设置时，才使用默认值
+            // 否则保留用户之前保存的设置
+            if (!settings.apiKey) {
+                apiKeyInput.value = 'sk-b9XqKHLd5IW7MiDK2FyAIsuQUm9ubwQTD8Sh6wfCejAX9uPe';
+            } else {
+                apiKeyInput.value = settings.apiKey;
+            }
+            
+            if (!settings.apiEndpoint) {
+                apiEndpointInput.value = 'https://api.moonshot.cn/v1/chat/completions';
+            } else {
+                apiEndpointInput.value = settings.apiEndpoint;
+            }
+            
+            if (!settings.modelName) {
+                modelNameInput.value = 'moonshot-v1-8k';
+            } else {
+                modelNameInput.value = settings.modelName;
+            }
+            
+            if (settings.analysisStyle) {
+                const styleInput = document.querySelector(`input[name="analysisStyle"][value="${settings.analysisStyle}"]`);
+                if (styleInput) {
+                    styleInput.checked = true;
+                }
+            } else {
+                // 默认选中平衡型
+                document.querySelector('input[name="analysisStyle"][value="balanced"]').checked = true;
+            }
+        }
+        
+        // 保存设置
+        function saveSettings() {
+            const settings = {
+                apiKey: apiKeyInput.value.trim(),
+                apiEndpoint: apiEndpointInput.value.trim() || 'https://api.moonshot.cn/v1/chat/completions',
+                modelName: modelNameInput.value.trim() || 'moonshot-v1-8k',
+                analysisStyle: document.querySelector('input[name="analysisStyle"]:checked').value
+            };
+            
+            localStorage.setItem('scheduleSettings', JSON.stringify(settings));
+            showNotification('设置已保存', 'success');
+        }
+        
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            notificationText.textContent = message;
+            
+            // 设置图标和颜色
+            notificationIcon.className = '';
+            notification.classList.remove('bg-green-600', 'bg-red-600', 'bg-blue-600', 'bg-amber-600');
+            
+            switch(type) {
+                case 'success':
+                    notificationIcon.classList.add('fa', 'fa-check-circle');
+                    notification.classList.add('bg-green-600');
+                    break;
+                case 'error':
+                    notificationIcon.classList.add('fa', 'fa-exclamation-circle');
+                    notification.classList.add('bg-red-600');
+                    break;
+                case 'warning':
+                    notificationIcon.classList.add('fa', 'fa-exclamation-triangle');
+                    notification.classList.add('bg-amber-600');
+                    break;
+                default:
+                    notificationIcon.classList.add('fa', 'fa-info-circle');
+                    notification.classList.add('bg-blue-600');
+            }
+            
+            // 显示通知
+            notification.classList.remove('translate-y-20', 'opacity-0');
+            notification.classList.add('translate-y-0', 'opacity-100');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                notification.classList.remove('translate-y-0', 'opacity-100');
+                notification.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+        }
+        
+        // 状态切换函数
+        function showInitialState() {
+            initialState.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            resultState.classList.add('hidden');
+        }
+        
+        function showLoadingState() {
+            initialState.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+            resultState.classList.add('hidden');
+        }
+        
+        function showErrorState() {
+            initialState.classList.add('hidden');
+            loadingState.classList.add('hidden');
+            errorState.classList.remove('hidden');
+            resultState.classList.add('hidden');
+        }
+        
+        function showResultState() {
+            initialState.classList.add('hidden');
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            resultState.classList.remove('hidden');
+            
+            // 滚动到结果区域（在移动设备上）
+            if (window.innerWidth < 1024) {
+                resultState.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+        
+        // 模态框控制函数
+        function openHistoryModal() {
+            historyModal.classList.remove('hidden');
+            historyModal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeHistoryModal() {
+            historyModal.classList.add('hidden');
+            historyModal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+        
+        function openSettingsModal() {
+            settingsModal.classList.remove('hidden');
+            settingsModal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeSettingsModal() {
+            settingsModal.classList.add('hidden');
+            settingsModal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+    
