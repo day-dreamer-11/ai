@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>日程计划AI分析助手（Kimi版）</title>
     <!-- 引入Tailwind CSS -->
+    <script>
+    const RENDER_SERVICE_URL = 'https://ai-5f0t.onrender.com/api/chat/completions';
+</script>
     <script src="./index_files/saved_resource"></script>
     <!-- 引入Font Awesome -->
     <link href="./index_files/font-awesome.min.css" rel="stylesheet">
@@ -419,7 +422,8 @@
             loadSettings();
             
             // 设置默认API接口地址为用户提供的Render服务地址
-            apiEndpointInput.value = 'https://ai-5f0t.onrender.com/api/chat/completions';
+            apiEndpointInput.value = RENDER_SERVICE_URL;
+
             modelNameInput.value = 'moonshot-v1-8k';
             
             // 自动保存这些设置
@@ -564,7 +568,7 @@
             `;
             
             // 调用后端代理API
-            fetch(apiEndpoint, {
+            fetch(RENDER_SERVICE_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
